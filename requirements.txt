@@ -1,10 +1,5 @@
 streamlit
 transformers==4.44.2
-evaluate>=0.4.2
-datasets>=3.0.0
-huggingface-hub>=0.23.2,<1.0
-torch==2.3.1+cu121
-torchvision
-torchaudio
-tensorflow-cpu==2.15.0
+torch==2.3.1
 sentencepiece
+reportlab
