@@ -165,10 +165,20 @@ text = st.text_area("", height=200, placeholder="এখানে একটি �
 def create_pdf(summary_text):
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.multi_cell(0, 10, txt="Bangla Summary:\n\n" + summary_text)
-    pdf_bytes = pdf.output(dest='S').encode('latin1')
+    pdf.set_font("Helvetica", size=12)
+
+    # Encode Bangla text as UTF-8 safely
+    # Use multi_cell to handle wrapping properly
+    try:
+        pdf.multi_cell(0, 10, txt="Bangla Summary:\n\n" + summary_text)
+    except UnicodeEncodeError:
+        # fallback: encode to UTF-8, ignoring unrenderable chars
+        pdf.multi_cell(0, 10, txt="Bangla Summary:\n\n" + summary_text.encode("utf-8", "ignore").decode("utf-8"))
+
+    # Output as UTF-8 bytes instead of latin1
+    pdf_bytes = pdf.output(dest='S').encode('utf-8', 'ignore')
     return BytesIO(pdf_bytes)
+
 
 
 # ---------- SUMMARIZATION ----------
