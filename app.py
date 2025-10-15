@@ -7,8 +7,8 @@ import streamlit as st
 import torch, time
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from io import BytesIO
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
+from fpdf import FPDF
+
 
 # ---------- PAGE CONFIG ----------
 st.set_page_config(
@@ -163,20 +163,13 @@ text = st.text_area("", height=200, placeholder="এখানে একটি �
 
 # ---------- PDF CREATOR ----------
 def create_pdf(summary_text):
-    buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=letter)
-    width, height = letter
-    c.setFont("Helvetica", 12)
-    text_object = c.beginText(50, height - 80)
-    text_object.textLine("Bangla Summary:")
-    text_object.textLine("")
-    for line in summary_text.split("\n"):
-        text_object.textLine(line)
-    c.drawText(text_object)
-    c.showPage()
-    c.save()
-    buffer.seek(0)
-    return buffer
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+    pdf.multi_cell(0, 10, txt="Bangla Summary:\n\n" + summary_text)
+    pdf_bytes = pdf.output(dest='S').encode('latin1')
+    return BytesIO(pdf_bytes)
+
 
 # ---------- SUMMARIZATION ----------
 summary = ""
