@@ -1,6 +1,6 @@
 # ==============================================================
 # 🧠 Bangla Zero-Shot Summarizer (Lightweight CPU Edition)
-# ✨ Works on Streamlit Cloud Free Tier
+# ✨ Works on Streamlit Cloud Free Tier | Auto-Truncate | UTF-8 PDF
 # ==============================================================
 
 import streamlit as st
@@ -87,18 +87,23 @@ div.stButton > button:hover {
     gap: 15px;
     margin-top: 15px;
 }
+.warning {
+    color: #f39c12;
+    text-align: center;
+    font-size: 14px;
+}
 </style>
 """, unsafe_allow_html=True)
 
 # ---------- HEADER ----------
 st.markdown("<h1>🧠 Bangla Zero-Shot Summarizer</h1>", unsafe_allow_html=True)
-st.markdown("<h4>Lightweight Version for Streamlit Cloud</h4>", unsafe_allow_html=True)
+st.markdown("<h4>Optimized for Streamlit Cloud (CPU)</h4>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
 # ---------- LOAD MODEL ----------
 @st.cache_resource
 def load_model():
-    model_name = "csebuetnlp/mT5_m2m_small"  # ✅ lightweight version
+    model_name = "csebuetnlp/mT5_m2m_small"  # ✅ Lightweight version
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -117,6 +122,15 @@ text = st.text_area(
     placeholder="এখানে একটি বাংলা অনুচ্ছেদ লিখুন...",
     label_visibility="collapsed"
 )
+
+# ---------- AUTO-TRUNCATION ----------
+MAX_INPUT_CHARS = 1500  # Limit text to about 512 tokens
+if len(text) > MAX_INPUT_CHARS:
+    st.markdown(
+        f"<p class='warning'>⚠️ আপনার ইনপুট খুব বড়। শুধুমাত্র প্রথম {MAX_INPUT_CHARS} অক্ষর ব্যবহার করা হবে সারসংক্ষেপ তৈরির জন্য।</p>",
+        unsafe_allow_html=True,
+    )
+    text = text[:MAX_INPUT_CHARS]
 
 # ---------- PDF CREATOR ----------
 def create_pdf(summary_text):
@@ -148,7 +162,7 @@ def safe_generate(text):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future = executor.submit(run_generation)
         try:
-            return future.result(timeout=60)  # 60 sec max
+            return future.result(timeout=60)  # ⏰ 60 sec max
         except concurrent.futures.TimeoutError:
             return "⚠️ Summarization timed out. Please shorten your text."
 
