@@ -1,13 +1,16 @@
 # ==============================================================
-# 🧠 Bangla Zero-Shot Summarizer (mT5_multilingual_XLSum)
-# ✨ Glowing Dark Mode UI + UTF-8 PDF + TXT Download (FPDF)
+# 🧠 Bangla Zero-Shot Summarizer (Lightweight CPU Edition)
+# ✨ Works on Streamlit Cloud Free Tier
 # ==============================================================
 
 import streamlit as st
-import torch, time
+import torch, time, warnings, concurrent.futures
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from io import BytesIO
 from fpdf import FPDF
+
+# ---------- SUPPRESS WARNINGS ----------
+warnings.filterwarnings("ignore", category=UserWarning, module="torch")
 
 # ---------- PAGE CONFIG ----------
 st.set_page_config(
@@ -29,13 +32,6 @@ h1, h2, h3, h4, h5 {
     text-align: center;
     font-weight: 700;
 }
-hr {
-    border: none;
-    height: 2px;
-    background: linear-gradient(to right, #5bc0be, #6fffe9);
-    margin-top: 10px;
-    margin-bottom: 20px;
-}
 .stTextArea textarea {
     background-color: #1c2541 !important;
     color: #eaeaea !important;
@@ -43,8 +39,6 @@ hr {
     border: 1px solid #5bc0be;
     font-size: 16px;
 }
-
-/* Glowing centered button */
 div.stButton > button {
     background: linear-gradient(90deg, #45b7aa, #6fffe9);
     color: #0b132b;
@@ -58,8 +52,6 @@ div.stButton > button {
     display: block;
     letter-spacing: 1px;
     transition: all 0.3s ease-in-out;
-    position: relative;
-    overflow: hidden;
 }
 div.stButton > button:hover {
     transform: scale(1.08);
@@ -74,9 +66,7 @@ div.stButton > button:hover {
     margin-top: 15px;
     font-size: 17px;
     color: #f8f8f8;
-    animation: fadeIn 1s ease-in-out;
 }
-@keyframes fadeIn { from {opacity:0;transform:translateY(15px);} to {opacity:1;transform:translateY(0);} }
 .footer {
     text-align: center;
     color: #9fa9b0;
@@ -91,11 +81,6 @@ div.stButton > button:hover {
     color: #6fffe9;
     font-weight: 500;
 }
-.typing-cursor {
-    display: inline-block;
-    animation: blink 1s step-end infinite;
-}
-@keyframes blink { from,to {opacity:0;} 50% {opacity:1;} }
 .download-buttons {
     display: flex;
     justify-content: center;
@@ -107,13 +92,13 @@ div.stButton > button:hover {
 
 # ---------- HEADER ----------
 st.markdown("<h1>🧠 Bangla Zero-Shot Summarizer</h1>", unsafe_allow_html=True)
-st.markdown("<h4>Model: csebuetnlp/mT5_multilingual_XLSum</h4>", unsafe_allow_html=True)
+st.markdown("<h4>Lightweight Version for Streamlit Cloud</h4>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
 # ---------- LOAD MODEL ----------
 @st.cache_resource
 def load_model():
-    model_name = "csebuetnlp/mT5_multilingual_XLSum"
+    model_name = "csebuetnlp/mT5_m2m_small"  # ✅ lightweight version
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -126,7 +111,12 @@ st.markdown(f"<p class='status'>{gpu_status}</p>", unsafe_allow_html=True)
 
 # ---------- INPUT ----------
 st.markdown("### ✏️ Enter Bangla Text to Summarize")
-text = st.text_area("", height=200, placeholder="এখানে একটি বাংলা অনুচ্ছেদ লিখুন...")
+text = st.text_area(
+    "Input Bangla Text",
+    height=200,
+    placeholder="এখানে একটি বাংলা অনুচ্ছেদ লিখুন...",
+    label_visibility="collapsed"
+)
 
 # ---------- PDF CREATOR ----------
 def create_pdf(summary_text):
@@ -140,63 +130,68 @@ def create_pdf(summary_text):
     pdf_bytes = pdf.output(dest='S').encode('utf-8', 'ignore')
     return BytesIO(pdf_bytes)
 
-# ---------- SUMMARIZATION ----------
+# ---------- SAFE SUMMARIZATION ----------
+def safe_generate(text):
+    def run_generation():
+        inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512).to(device)
+        with torch.no_grad():
+            ids = model.generate(
+                **inputs,
+                max_length=120,
+                min_length=40,
+                num_beams=2,
+                repetition_penalty=1.1,
+                early_stopping=True
+            )
+        return tokenizer.decode(ids[0], skip_special_tokens=True)
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        future = executor.submit(run_generation)
+        try:
+            return future.result(timeout=60)  # 60 sec max
+        except concurrent.futures.TimeoutError:
+            return "⚠️ Summarization timed out. Please shorten your text."
+
+# ---------- BUTTON ----------
 summary = ""
 if st.button("🚀 Generate Summary"):
     if not text.strip():
         st.warning("⚠️ অনুগ্রহ করে একটি বাংলা অনুচ্ছেদ লিখুন।")
     else:
         with st.spinner("Generating summary..."):
-            inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=1024).to(device)
-            with torch.no_grad():
-                summary_ids = model.generate(
-                    **inputs,
-                    max_length=180,
-                    min_length=60,
-                    num_beams=6,
-                    no_repeat_ngram_size=3,
-                    repetition_penalty=1.3,
-                    early_stopping=True,
+            summary = safe_generate(text)
+
+        if summary.startswith("⚠️"):
+            st.error(summary)
+        else:
+            st.markdown("<h3>📝 Generated Summary</h3>", unsafe_allow_html=True)
+            st.markdown(f"<div class='result-box'>{summary}</div>", unsafe_allow_html=True)
+
+            st.markdown("<div class='download-buttons'>", unsafe_allow_html=True)
+            colA, colB = st.columns([1, 1])
+            with colA:
+                st.download_button(
+                    "📄 Download as TXT",
+                    data=summary.encode("utf-8"),
+                    file_name="bangla_summary.txt",
+                    mime="text/plain",
+                    use_container_width=True,
                 )
-            summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
-
-        st.markdown("<h3>📝 Generated Summary</h3>", unsafe_allow_html=True)
-        placeholder = st.empty()
-        typed = ""
-        for ch in summary:
-            typed += ch
-            placeholder.markdown(
-                f"<div class='result-box'>{typed}<span class='typing-cursor'>|</span></div>",
-                unsafe_allow_html=True,
-            )
-            time.sleep(0.01)
-        placeholder.markdown(f"<div class='result-box'>{summary}</div>", unsafe_allow_html=True)
-
-        st.markdown("<div class='download-buttons'>", unsafe_allow_html=True)
-        colA, colB = st.columns([1, 1])
-        with colA:
-            st.download_button(
-                "📄 Download as TXT",
-                data=summary.encode("utf-8"),
-                file_name="bangla_summary.txt",
-                mime="text/plain",
-                use_container_width=True,
-            )
-        with colB:
-            pdf_buffer = create_pdf(summary)
-            st.download_button(
-                "🧾 Download as PDF",
-                data=pdf_buffer,
-                file_name="bangla_summary.pdf",
-                mime="application/pdf",
-                use_container_width=True,
-            )
-        st.markdown("</div>", unsafe_allow_html=True)
+            with colB:
+                pdf_buffer = create_pdf(summary)
+                st.download_button(
+                    "🧾 Download as PDF",
+                    data=pdf_buffer,
+                    file_name="bangla_summary.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                )
+            st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------- FOOTER ----------
 st.markdown("""
 <div class='footer'>
 Developed by <b>Your Name</b> | Thesis Visualization Project<br>
-Model: csebuetnlp/mT5_multilingual_XLSum
+Model: csebuetnlp/mT5_m2m_small (optimized for CPU)
 </div>
 """, unsafe_allow_html=True)
