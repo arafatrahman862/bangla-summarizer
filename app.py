@@ -1,13 +1,11 @@
 # ==============================================================
 # 🧠 Bangla Summarizer — csebuetnlp/mT5_multilingual_XLSum
-# ✅ Optimized for Hugging Face Spaces (Streamlit)
+# ✅ Simplified (No Download Buttons) | Hugging Face Spaces Ready
 # ==============================================================
 
 import streamlit as st
 import torch, time, warnings, concurrent.futures
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-from io import BytesIO
-from fpdf import FPDF
 
 warnings.filterwarnings("ignore", category=UserWarning, module="torch")
 
@@ -85,12 +83,6 @@ div.stButton > button:hover {
     text-align: center;
     font-size: 14px;
 }
-.download-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin-top: 15px;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -131,18 +123,6 @@ if len(text) > MAX_INPUT_CHARS:
     )
     text = text[:MAX_INPUT_CHARS]
 
-# ---------- PDF CREATOR ----------
-def create_pdf(summary_text):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Helvetica", size=12)
-    try:
-        pdf.multi_cell(0, 10, txt="Bangla Summary:\n\n" + summary_text)
-    except UnicodeEncodeError:
-        pdf.multi_cell(0, 10, txt="Bangla Summary:\n\n" + summary_text.encode("utf-8", "ignore").decode("utf-8"))
-    pdf_bytes = pdf.output(dest='S').encode('utf-8', 'ignore')
-    return BytesIO(pdf_bytes)
-
 # ---------- SAFE GENERATION ----------
 def safe_generate(text):
     def run_generation():
@@ -179,27 +159,6 @@ if st.button("🚀 Generate Summary"):
         else:
             st.markdown("<h3>📝 Generated Summary</h3>", unsafe_allow_html=True)
             st.markdown(f"<div class='result-box'>{summary}</div>", unsafe_allow_html=True)
-
-            st.markdown("<div class='download-buttons'>", unsafe_allow_html=True)
-            colA, colB = st.columns([1, 1])
-            with colA:
-                st.download_button(
-                    "📄 Download as TXT",
-                    data=summary.encode("utf-8"),
-                    file_name="bangla_summary.txt",
-                    mime="text/plain",
-                    use_container_width=True,
-                )
-            with colB:
-                pdf_buffer = create_pdf(summary)
-                st.download_button(
-                    "🧾 Download as PDF",
-                    data=pdf_buffer,
-                    file_name="bangla_summary.pdf",
-                    mime="application/pdf",
-                    use_container_width=True,
-                )
-            st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------- FOOTER ----------
 st.markdown("""
