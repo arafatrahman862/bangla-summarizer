@@ -1,6 +1,6 @@
 # ==============================================================
-# 🧠 Bangla Zero-Shot Summarizer (Lightweight CPU Edition)
-# ✨ Works on Streamlit Cloud Free Tier | Auto-Truncate | UTF-8 PDF
+# 🧠 Bangla Summarizer — csebuetnlp/mT5_multilingual_XLSum
+# ✅ Optimized for Hugging Face Spaces (Streamlit)
 # ==============================================================
 
 import streamlit as st
@@ -9,7 +9,6 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from io import BytesIO
 from fpdf import FPDF
 
-# ---------- SUPPRESS WARNINGS ----------
 warnings.filterwarnings("ignore", category=UserWarning, module="torch")
 
 # ---------- PAGE CONFIG ----------
@@ -81,29 +80,29 @@ div.stButton > button:hover {
     color: #6fffe9;
     font-weight: 500;
 }
+.warning {
+    color: #f39c12;
+    text-align: center;
+    font-size: 14px;
+}
 .download-buttons {
     display: flex;
     justify-content: center;
     gap: 15px;
     margin-top: 15px;
 }
-.warning {
-    color: #f39c12;
-    text-align: center;
-    font-size: 14px;
-}
 </style>
 """, unsafe_allow_html=True)
 
 # ---------- HEADER ----------
 st.markdown("<h1>🧠 Bangla Zero-Shot Summarizer</h1>", unsafe_allow_html=True)
-st.markdown("<h4>Optimized for Streamlit Cloud (CPU)</h4>", unsafe_allow_html=True)
+st.markdown("<h4>Model: csebuetnlp/mT5_multilingual_XLSum</h4>", unsafe_allow_html=True)
 st.markdown("<hr>", unsafe_allow_html=True)
 
 # ---------- LOAD MODEL ----------
 @st.cache_resource
 def load_model():
-    model_name = "csebuetnlp/mT5_m2m_small"  # ✅ Lightweight version
+    model_name = "csebuetnlp/mT5_multilingual_XLSum"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -124,10 +123,10 @@ text = st.text_area(
 )
 
 # ---------- AUTO-TRUNCATION ----------
-MAX_INPUT_CHARS = 1500  # Limit text to about 512 tokens
+MAX_INPUT_CHARS = 1000
 if len(text) > MAX_INPUT_CHARS:
     st.markdown(
-        f"<p class='warning'>⚠️ আপনার ইনপুট খুব বড়। শুধুমাত্র প্রথম {MAX_INPUT_CHARS} অক্ষর ব্যবহার করা হবে সারসংক্ষেপ তৈরির জন্য।</p>",
+        f"<p class='warning'>⚠️ ইনপুট অনেক বড়। শুধুমাত্র প্রথম {MAX_INPUT_CHARS} অক্ষর সারসংক্ষেপের জন্য ব্যবহার করা হবে।</p>",
         unsafe_allow_html=True,
     )
     text = text[:MAX_INPUT_CHARS]
@@ -144,7 +143,7 @@ def create_pdf(summary_text):
     pdf_bytes = pdf.output(dest='S').encode('utf-8', 'ignore')
     return BytesIO(pdf_bytes)
 
-# ---------- SAFE SUMMARIZATION ----------
+# ---------- SAFE GENERATION ----------
 def safe_generate(text):
     def run_generation():
         inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=512).to(device)
@@ -162,9 +161,9 @@ def safe_generate(text):
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future = executor.submit(run_generation)
         try:
-            return future.result(timeout=60)  # ⏰ 60 sec max
+            return future.result(timeout=90)  # 90 sec max
         except concurrent.futures.TimeoutError:
-            return "⚠️ Summarization timed out. Please shorten your text."
+            return "⚠️ Summarization took too long. Try shorter text."
 
 # ---------- BUTTON ----------
 summary = ""
@@ -172,7 +171,7 @@ if st.button("🚀 Generate Summary"):
     if not text.strip():
         st.warning("⚠️ অনুগ্রহ করে একটি বাংলা অনুচ্ছেদ লিখুন।")
     else:
-        with st.spinner("Generating summary..."):
+        with st.spinner("Generating summary... (This may take 30–60 sec on CPU)"):
             summary = safe_generate(text)
 
         if summary.startswith("⚠️"):
@@ -205,7 +204,7 @@ if st.button("🚀 Generate Summary"):
 # ---------- FOOTER ----------
 st.markdown("""
 <div class='footer'>
-Developed by <b>Your Name</b> | Thesis Visualization Project<br>
-Model: csebuetnlp/mT5_m2m_small (optimized for CPU)
+Developed by <b>Arafat Rahman</b> | Thesis Visualization Project<br>
+Model: csebuetnlp/mT5_multilingual_XLSum
 </div>
 """, unsafe_allow_html=True)
