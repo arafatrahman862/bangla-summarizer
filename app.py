@@ -30,8 +30,8 @@ h1, h2, h3, h4, h5 {
     font-weight: 700;
 }
 .stTextArea textarea {
-    background-color: #1c2541 !important;
-    color: #eaeaea !important;
+    background-color: #ffffff !important; /* White */
+    color: #000000 !important;            /* Black */
     border-radius: 10px;
     border: 1px solid #5bc0be;
     font-size: 16px;
