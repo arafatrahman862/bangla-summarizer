@@ -56,13 +56,13 @@ div.stButton > button:hover {
     background: linear-gradient(90deg, #6fffe9, #45b7aa);
 }
 .result-box {
-    background-color: #1c2541;
+    background-color: #ffffff !important; /* White background */
+    color: #000000 !important;            /* Black text */
     border: 1px solid #5bc0be;
     border-radius: 10px;
     padding: 15px;
     margin-top: 15px;
     font-size: 17px;
-    color: #f8f8f8;
 }
 .footer {
     text-align: center;
